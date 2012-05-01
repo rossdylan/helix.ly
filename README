@@ -1,0 +1,11 @@
+To Shorten a link send a post reques to /api/shorten with a body containing a json blob like this one:
+with authentication:
+	{'user_id': '<userid>', 'auth_token': '<authtoken>', 'full_link': '<fulllink>'}
+
+with out authentication:
+	{'full_link': '<fulllink>'}
+
+To retrieve data about a shortened url send a get to /api/unshorten/<shorturl>
+It returns a json blob containing the information
+
+To be redirected to the full length url browse to /<shorturl>
