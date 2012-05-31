@@ -6,7 +6,7 @@ from time import ctime
 
 def hashLink(link):
     """
-    Hash a link
+    Hash a link, this might need to be changed to be more complex at some point
 
     :type link: str
     :param link: The link to be hashed
@@ -44,7 +44,31 @@ def cache(func, cache, invalid_after):
 
 
 class CSHLYServer(object):
+    """
+    WSGI Server exposing the link shortening api
+
+    :type port: int
+    :param port: port to listen for connections on
+
+    :type link_db_uri: str
+    :param link_db_uri: a shove compatible database uri for storing shortened links
+
+    :type user_db_uri: str
+    :param user_db_uri: a shove compatible database uri for storing user information
+
+    :type use_auth: boolean
+    :param use_auth: Enable authentication or disable authentication, default is enabled
+    """
+
     def __new__(self, *args, **kwargs):
+        """
+        Used to call decorators on all the functions in the class
+        shorten -> /api/shorten
+        unshorten -> /api/unshorten/<hashed>
+        unshorten_redirect -> /<hashed>
+        get_link_data is cached
+        """
+
         obj = super(CSHLYServer, self).__new__(self, *args, **kwargs)
         obj.cache = Shove()
         obj.unshorten = cache(obj.unshorten, obj.cache, 300)
@@ -63,6 +87,13 @@ class CSHLYServer(object):
             self.user_db['null'] = {'token': '', 'username':'null', 'links': []}
 
     def get_link_data(self, hashed_link):
+        """
+        Used to get information on a hashed link. This function is cached
+
+        :type hashed_link: str
+        :param hashed_link: the hashed link to retrieve information on
+        """
+
         try:
             data = self.link_db[hashed_link]
             return data
@@ -70,6 +101,16 @@ class CSHLYServer(object):
             return None
 
     def is_user_authenticated(self, user_id, auth_token):
+        """
+        Check to see if a user is authenticated or not
+
+        :type user_id: str
+        :param user_id: the users ID
+
+        :type auth_token: str
+        :param auth_token: a token used to see if a user is valid
+        """
+
         user = self.user_db[user_id]
         if user['token'] == auth_token:
             return True
@@ -77,6 +118,12 @@ class CSHLYServer(object):
             return False
 
     def shorten(self):
+        """
+        Used to handle the shorten api endpoint
+        The body of the request contains the json formatted request to shorten a url
+        this function returns a json formatted response with the shortened url
+        """
+
         data = request.body.readline()
         print "Received shorten request: {0}".format(data)
         if not data:
@@ -98,6 +145,11 @@ class CSHLYServer(object):
                 abort(403, 'User id or auth token incorrect')
 
     def unshorten(self, hashed):
+        """
+        Used to handle the unshorten api endpoint
+        This function is given a url hash and returns a json formatted response with information on that url
+        """
+
         print "Received unshorten request: {0}".format(hashed)
         link_data = self.get_link_data(hashed)
         if link_data == None:
@@ -108,15 +160,23 @@ class CSHLYServer(object):
             return json.dumps({'full_link': link_data['full_link'], 'lookups': link_data['lookups']})
 
     def unshorten_redirect(self, hashed):
-       link_data = self.get_link_data(hashed)
-       if link_data == None:
-           abort(404, 'Shortened URL not found')
-       else:
-           self.link_db[hashed]['lookups'] += 1
-           redirect("http://" + link_data['full_link'])
-           self.link_db.sync()
+        """
+        Used to unshorten a hashed url given to the function and redirect the user to its destination
+        Currently doesn't support https (need to fix that >_>)
+        example: http://helix.ly/hashed_url -> http://full-url.com/some_random_page
+        """
+        link_data = self.get_link_data(hashed)
+        if link_data == None:
+            abort(404, 'Shortened URL not found')
+        else:
+            self.link_db[hashed]['lookups'] += 1
+            redirect("http://" + link_data['full_link'])
+            self.link_db.sync()
 
     def start(self):
+        """
+        Called to start the wsgi server
+        """
         run(server='eventlet', port=self.port)
         self.link_db.sync()
         self.user_db.sync()
