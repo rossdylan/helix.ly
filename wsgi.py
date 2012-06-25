@@ -9,20 +9,7 @@ CSHLYServer(0, "file://links.db", "file://users.db", use_auth = False)
 app = bottle.default_app()
 
 def main():
-    from tornado.wsgi import WSGIContainer
-    from tornado.httpserver import HTTPServer
-    from tornado.ioloop import IOLoop
-
-
-    http_server = HTTPServer(WSGIContainer(app))
-    http_server.listen(5000)
-
-    try:
-        print "Starting Tornado Server "
-        IOLoop.instance().start()
-    except KeyboardInterrupt:
-        print "Stopping Tornado Server"
-        IOLoop.instance().stop()
+    print "This file must not be run directly, please use it via a WSGI interface"
         
 if __name__ == "__main__":
     main()
