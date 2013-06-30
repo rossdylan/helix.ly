@@ -4,6 +4,8 @@ import json
 from shove import Shove
 from time import ctime
 
+DEBUG = True
+
 
 def hashLink(link):
     """
@@ -189,7 +191,7 @@ class CSHLYServer(object):
         """
         Called to start the wsgi server
         """
-        run(reloader=True, server='eventlet', port=self.port)
+        run(reloader=DEBUG, server='eventlet', port=self.port)
         self.link_db.sync()
         self.user_db.sync()
 
