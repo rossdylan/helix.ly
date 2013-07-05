@@ -4,7 +4,7 @@ import json
 from shove import Shove
 from time import ctime
 
-DEBUG = True
+DEBUG = False
 
 
 def hashLink(link):
