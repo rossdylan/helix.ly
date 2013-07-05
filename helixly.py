@@ -4,6 +4,9 @@ import json
 from shove import Shove
 from time import ctime
 
+DEBUG = False
+
+
 def hashLink(link):
     """
     Hash a link, this might need to be changed to be more complex at some point
@@ -13,6 +16,7 @@ def hashLink(link):
     """
 
     return str(md5.new(link).hexdigest())[:5]
+
 
 def cache(func, cache, invalid_after):
     """
@@ -84,7 +88,7 @@ class CSHLYServer(object):
         self.user_db = Shove(user_db_uri)
         self.use_auth = use_auth
         if not self.use_auth and 'null' not in self.user_db:
-            self.user_db['null'] = {'token': '', 'username':'null', 'links': []}
+            self.user_db['null'] = {'token': '', 'username': 'null', 'links': []}
 
     def get_link_data(self, hashed_link):
         """
@@ -128,17 +132,24 @@ class CSHLYServer(object):
         print "Received shorten request: {0}".format(data)
         if not data:
             abort(400, 'No data received')
-        data = json.loads(data)
+
+        try:
+            data = json.loads(data)
+        except Exception, e:
+            print e
+
+        #data = json.loads(data)
 
         if "full_link" in data:
             if ("user_id" in data and "auth_token" in data and self.is_user_authenticated(data['user_id'], data['auth_token'])) or not self.use_auth:
+
                 hashed = hashLink(data['full_link'])
-                self.link_db[hashed] = {'lookups':0, 'owner': data.get('user_id','null'), 'full_link': data['full_link']}
+                self.link_db[hashed] = {'lookups': 0, 'owner': data.get('user_id', 'null'), 'full_link': data['full_link']}
                 self.link_db.sync()
                 try:
-                    self.user_db[data.get('user_id','null')]['links'].append(hashed)
+                    self.user_db[data.get('user_id', 'null')]['links'].append(hashed)
                 except:
-                    self.user_db[data.get('user_id','null')]['links'] = [hashed,]
+                    self.user_db[data.get('user_id', 'null')]['links'] = [hashed, ]
                 self.user_db.sync()
                 return json.dumps({"shortened": hashed})
             else:
@@ -152,7 +163,7 @@ class CSHLYServer(object):
 
         print "Received unshorten request: {0}".format(hashed)
         link_data = self.get_link_data(hashed)
-        if link_data == None:
+        if link_data is None:
             return json.dumps({'error': 'Link not Found'})
         else:
             self.link_db[hashed]['lookups'] += 1
@@ -166,18 +177,21 @@ class CSHLYServer(object):
         example: http://helix.ly/hashed_url -> http://full-url.com/some_random_page
         """
         link_data = self.get_link_data(hashed)
-        if link_data == None:
+        if link_data is None:
             abort(404, 'Shortened URL not found')
         else:
             self.link_db[hashed]['lookups'] += 1
-            redirect("http://" + link_data['full_link'])
+
+            full_link = link_data['full_link']
+
+            redirect(full_link)
             self.link_db.sync()
 
     def start(self):
         """
         Called to start the wsgi server
         """
-        run(server='eventlet', port=self.port)
+        run(reloader=DEBUG, server='eventlet', port=self.port)
         self.link_db.sync()
         self.user_db.sync()
 
